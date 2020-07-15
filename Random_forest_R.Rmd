@@ -3,17 +3,119 @@ title: "Random Forest R demo"
 output: html_notebook
 ---
 
-This is a demo based off StatQuest's example.
+This is a demo based off StatQuest's example. Its uses the UCI machine learning repository data, specifically the 'heart desease' data set. This is a classic binary classification data set which includes a range of data types and some missing data.
 
 ## Load libraries.
 
-cowplot is an addition to 'ggplot2' - helps with default settings
-
-```{r eval=TRUE} 
+* cowplot is an addition to 'ggplot2' - helps with default settings.
+* pROC is a tool for visualising reciever-operating curve (ROC).
+```{r eval=TRUE, error=FALSE, message=FALSE} 
 library(randomForest)
 library(ggplot2)
 library(cowplot)
 library(pROC)
 ```
 
+## Load data
 
+The data used in this demo comes from the UCI machine learning repository.
+http://archive.ics.uci.edu/ml/index.php
+http://archive.ics.uci.edu/ml/datasets/heart+Disease
+
+Its made of 13 fields (features).
+```{r}
+url <- "http://archive.ics.uci.edu/ml/machine-learning-databases/heart-disease/processed.cleveland.data"
+data <- read.csv(url, header=FALSE)
+```
+
+The data does not come with a descriptive header.
+
+### Add header
+
+Description of the fields
+
+* sex: 0 = female, 1 = male
+* cp: chest pain 
+  + 1 = typical angina, 
+  + 2 = atypical angina, 
+  + 3 = non-anginal pain, 
+  + 4 = asymptomatic
+* trestbps: resting blood pressure (in mm Hg)
+* chol: serum cholestoral in mg/dl
+* fbs: fasting blood sugar if less than 120 mg/dl, 1 = TRUE, 0 = FALSE
+* restecg: resting electrocardiographic results
+  + 1 = normal
+  + 2 = having ST-T wave abnormality
+  + 3 = showing probable or definite left ventricular hypertrophy
+* thalach: maximum heart rate achieved
+* exang: exercise induced angina, 1 = yes, 0 = no
+* oldpeak: ST depression induced by exercise relative to rest
+* slope: the slope of the peak exercise ST segment 
+  + 1 = upsloping 
+  + 2 = flat 
+  + 3 = downsloping 
+* ca: number of major vessels (0-3) colored by fluoroscopy
+* thal: this is short of thalium heart scan
+  + 3 = normal (no cold spots)
+  + 6 = fixed defect (cold spots during rest and exercise)
+  + 7 = reversible defect (when cold spots only appear during exercise)
+* hd: (the predicted attribute) - diagnosis of heart disease 
+  + 0 if less than or equal to 50% diameter narrowing
+  + 1 if greater than 50% diameter narrowing
+
+```{r}
+colnames(data) <- c(
+  "age",
+  "sex",
+  "cp",
+  "trestbps",
+  "chol",
+  "fbs",
+  "restecg",
+  "thalach",
+  "exang",
+  "oldpeak",
+  "slope",
+  "ca",
+  "thal",
+  "hd"
+)
+```
+
+### Assessing data structure
+Use the str() function to view structure.
+```{r}
+str(data)
+```
+Assess the heart disease predictive attribute:
+```{r message=FALSE}
+qplot(hd, data = data)
+```
+Convert the 'hd' attribute to a binary output, replacing 0 = 'healthy' and 1,2,3, 4 with 'unhealthy'
+```{r}
+data$hd <- ifelse(data$hd == 0, "healthy", "unhealthy")
+
+```
+
+Convert known categorical fields to factors including changing 'sex' to F/M:
+```{r}
+data[data$sex == 0,]$sex <- "F"
+data[data$sex == 1,]$sex <- "M"
+data$sex <- as.factor(data$sex)
+data$cp <- as.factor(data$cp)
+data$fbs <- as.factor(data$fbs)
+data$restecg <- as.factor(data$restecg)
+data$exang <- as.factor(data$exang)
+data$slope <- as.factor(data$slope)
+data$hd <- as.factor(data$hd)
+```
+
+There is some missing data in the 'ca' and 'thal' attrbutes that have been represented with '?'. Chnage these to NA, as we will change these attributes from string to numeric.
+
+
+
+
+Use the str() function to view structure.
+```{r}
+str(data)
+```
