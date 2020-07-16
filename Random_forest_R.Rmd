@@ -16,13 +16,12 @@ library(cowplot)
 library(pROC)
 ```
 
-## Load data
+## Process Data
+### Load data
 
 The data used in this demo comes from the UCI machine learning repository.
 http://archive.ics.uci.edu/ml/index.php
 http://archive.ics.uci.edu/ml/datasets/heart+Disease
-
-Its made of 13 fields (features).
 ```{r}
 url <- "http://archive.ics.uci.edu/ml/machine-learning-databases/heart-disease/processed.cleveland.data"
 data <- read.csv(url, header=FALSE)
@@ -62,7 +61,6 @@ Description of the fields
 * hd: (the predicted attribute) - diagnosis of heart disease 
   + 0 if less than or equal to 50% diameter narrowing
   + 1 if greater than 50% diameter narrowing
-
 ```{r}
 colnames(data) <- c(
   "age",
@@ -87,17 +85,29 @@ Use the str() function to view structure.
 ```{r}
 str(data)
 ```
-Assess the heart disease predictive attribute:
-```{r message=FALSE}
-qplot(hd, data = data)
-```
+
+### Modify attributes
 Convert the 'hd' attribute to a binary output, replacing 0 = 'healthy' and 1,2,3, 4 with 'unhealthy'
 ```{r}
 data$hd <- ifelse(data$hd == 0, "healthy", "unhealthy")
 
 ```
 
-Convert known categorical fields to factors including changing 'sex' to F/M:
+## Assess missing data
+In this data, missing items are denoted by '?'. How many missing items?
+```{r}
+length(data[data =='?'])
+```
+```{r}
+summary(data)
+```
+
+ Change these to 'NA', as we will change these attributes from string to numeric.
+```{r}
+data[data == '?'] <- NA
+```
+
+Convert known categorical attributes to factors including changing 'sex' to F/M:
 ```{r}
 data[data$sex == 0,]$sex <- "F"
 data[data$sex == 1,]$sex <- "M"
@@ -108,14 +118,95 @@ data$restecg <- as.factor(data$restecg)
 data$exang <- as.factor(data$exang)
 data$slope <- as.factor(data$slope)
 data$hd <- as.factor(data$hd)
+data$ca <- as.factor(data$ca)
+data$thal <- as.factor(data$thal)
 ```
-
-There is some missing data in the 'ca' and 'thal' attrbutes that have been represented with '?'. Chnage these to NA, as we will change these attributes from string to numeric.
-
-
-
 
 Use the str() function to view structure.
 ```{r}
 str(data)
+```
+Note that the 'NA's don't appear as a factor level in 'ca' or 'thal'.
+
+## Data Imputation
+
+Missing data is a fact of life. In this case the missing data has been identified as NA. Identify the rows with NA.
+```{r}
+data[complete.cases(data) == FALSE,]
+```
+To impute the missing values, we will use randomForste.rfImpute() which uses the proximity matrix from the random forest algorithim to predict values. For categorical predictors, the imputed value is the category with the largest average proximity.The proximity matrix is actually derived by creating random forest models using the full dataset.
+
+We set a random generator seed value to ensure repeatability.
+```{r}
+set.seed(42)
+data.imputed <- rfImpute(hd ~ ., data = data, iter=6, ntree=300)
+```
+OOB - Out of Bag error rate. The next columns are the error rates for hd's 'healthy (1) and unhealthy (2).
+
+## Build a Random Forest model
+
+This is the point we will build the random forest model to predict heart disease (hd).
+
+We will leave the model witht he default settings. 
+* For classification the variable split is the square root of the total attribute, i.e.3. see mtry.
+* Number of trees is 500
+
+
+We will use the proximity matrix later on.
+```{r}
+rfmodel <- randomForest(hd ~ ., data = data.imputed, proximity = TRUE)
+rfmodel
+```
+
+### Plot the error rate
+
+Random forest is an iterative process, i.e. the number of trees improves the model until it plateaus. An error rate chart over the process will identify the plataeu. All of the information resides in the model object as a list.
+
+```{r}
+oob.error.data <- data.frame(
+  Trees = rep(1:nrow(rfmodel$err.rate), times = 3),
+  Type = rep(c("OOB", "Healthy", "Unhealthy"), each = nrow(rfmodel$err.rate)),
+  Error = c(rfmodel$err.rate[, "OOB"],
+            rfmodel$err.rate[, "healthy"],
+            rfmodel$err.rate[, "unhealthy"])
+)
+
+ggplot(data = oob.error.data, aes(x = Trees, y = Error)) +
+  geom_line(aes(color = Type))
+```
+The default number (500) of trees looks adequate.
+
+## Hyper tuning
+
+Let's try different numbers of variables for the variable split (from 1 to 10, instead of relying on just 3).
+```{r}
+oob.values <- vector(length = 10)
+for (i in 1:10) {
+  temp.model <-
+    randomForest(hd ~ .,
+                 data = data.imputed,
+                 mtry = i,
+                 ntree = 1000)
+  oob.values[i] <- temp.model$err.rate[nrow(temp.model$err.rate), 1]
+}
+
+
+mtry.oob.error.data <- data.frame(mtry.split = 1:10,
+           mtry.oob.errors = oob.values)
+```
+
+```{r}
+ggplot(data = mtry.oob.error.data, aes(x = mtry.split, y = mtry.oob.errors)) + geom_point()
+
+```
+Looks like 2 to 3 variables is the right split number.
+
+## Predictions
+
+Select the first 5 results in 'data' as a sample for prediction.
+```{r}
+data.new <- data[1:5, !colnames(data) %in% c("hd")]
+
+predict(rfmodel, data.new, type='response')
+
 ```
