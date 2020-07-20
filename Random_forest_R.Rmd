@@ -3,7 +3,7 @@ title: "Random Forest R demo"
 output: html_notebook
 ---
 
-This is a demo based off StatQuest's example. Its uses the UCI machine learning repository data, specifically the 'heart desease' data set. This is a classic binary classification data set which includes a range of data types and some missing data.
+This is a demo based off StatQuest's example. Its uses the UCI machine learning repository data, specifically the 'heart disease' data set. This is a classic binary classification data set which includes a range of data types and some missing data.
 
 ## Load libraries.
 
