@@ -147,9 +147,13 @@ OOB - Out of Bag error rate. The next columns are the error rates for hd's 'heal
 
 This is the point we will build the random forest model to predict heart disease (hd).
 
-We will leave the model witht he default settings. 
-* For classification the variable split is the square root of the total attribute, i.e.3. see mtry.
+We will leave the model with the default settings. 
+* For classification the number of variables selected for each decision node is the square root of the total attribute, i.e.square root of 13 (rounded down) is 3. see mtry. This random selection property is what makes random forest so powerful.
 * Number of trees is 500
+* Sampling of cases is done with replacement, i.e. an individual row can be used multiple times in the bootstrapped data set.
+* Sample size is the same as row count of sample if sampling is performed with replacement. The rows not selected become part of the out of bag sample (to calculate the OOB error).
+* Nodesize: minimum sample size of terminal nodes (leaf node). For classification the default is 1 (5 for regression).
+* Maxnodes: This is the maximum number of terminal nodes (leaf nodes) trees in the forest can have. If not given, trees are grown to the maximum possible (subject to limits by nodesize). If set larger than maximum possible, a warning is issued
 
 
 We will use the proximity matrix later on.
@@ -176,7 +180,7 @@ ggplot(data = oob.error.data, aes(x = Trees, y = Error)) +
 ```
 The default number (500) of trees looks adequate.
 
-## Hyper tuning
+## Parameter tuning
 
 Let's try different numbers of variables for the variable split (from 1 to 10, instead of relying on just 3).
 ```{r}
